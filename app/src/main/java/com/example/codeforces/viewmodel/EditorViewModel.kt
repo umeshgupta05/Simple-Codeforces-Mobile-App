@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.codeforces.data.local.EditorSession
 import com.example.codeforces.data.local.EditorSessionDao
+import com.example.codeforces.data.local.ProblemNote
+import com.example.codeforces.data.local.ProblemNoteDao
 import com.example.codeforces.data.model.LanguageTemplate
 import com.example.codeforces.utils.LanguageTemplates
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,11 +19,13 @@ data class EditorUiState(
     val customInput: String = "",
     val languages: List<LanguageTemplate> = LanguageTemplates.templates,
     val lastSaved: Long? = null,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val note: String = ""
 )
 
 class EditorViewModel(
-    private val editorSessionDao: EditorSessionDao
+    private val editorSessionDao: EditorSessionDao,
+    private val problemNoteDao: ProblemNoteDao? = null
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EditorUiState())
@@ -52,6 +56,13 @@ class EditorViewModel(
                     isLoading = false
                 )
             }
+            
+            // Load note
+            problemNoteDao?.let { dao ->
+                dao.getNote(problemId).collect { noteEntity ->
+                    _state.value = _state.value.copy(note = noteEntity?.note ?: "")
+                }
+            }
         }
     }
 
@@ -75,6 +86,19 @@ class EditorViewModel(
         persist(problemId)
     }
 
+    fun onNoteChange(newNote: String, problemId: String) {
+        _state.value = _state.value.copy(note = newNote)
+        viewModelScope.launch {
+            problemNoteDao?.saveNote(
+                ProblemNote(
+                    problemId = problemId,
+                    note = newNote,
+                    lastModified = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
     private fun persist(problemId: String) {
         viewModelScope.launch {
             val session = EditorSession(
@@ -90,5 +114,3 @@ class EditorViewModel(
         }
     }
 }
-
-

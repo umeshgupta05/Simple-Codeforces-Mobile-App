@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -33,6 +34,8 @@ fun EnhancedProblemDetailScreen(
     onLanguageChange: (Int) -> Unit,
     onCustomInputChange: (String) -> Unit,
     onBack: () -> Unit,
+    noteText: String = "",
+    onNoteChange: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -59,6 +62,25 @@ fun EnhancedProblemDetailScreen(
                     }
                 },
                 actions = {
+                    // Share button
+                    IconButton(
+                        onClick = {
+                            val contestId = problemState.problem?.contestId
+                            val index = problemState.problem?.index
+                            if (contestId != null && index != null) {
+                                val url = "https://codeforces.com/problemset/problem/$contestId/$index"
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, "Codeforces: ${problemState.problem?.name}")
+                                    putExtra(Intent.EXTRA_TEXT, "Check out this problem: ${problemState.problem?.name}\n$url")
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Share Problem"))
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = "Share")
+                    }
+                    // Submit button
                     IconButton(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -199,6 +221,42 @@ fun EnhancedProblemDetailScreen(
                             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                         )
                     )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Notes Section
+                    var showNotes by remember { mutableStateOf(noteText.isNotBlank()) }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "📝 Personal Notes",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        IconButton(onClick = { showNotes = !showNotes }) {
+                            Icon(
+                                if (showNotes) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = "Toggle Notes"
+                            )
+                        }
+                    }
+                    AnimatedVisibility(visible = showNotes) {
+                        OutlinedTextField(
+                            value = noteText,
+                            onValueChange = onNoteChange,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .padding(horizontal = 16.dp),
+                            placeholder = { Text("Add your notes, approach ideas, hints…") },
+                            textStyle = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                     
                     Spacer(modifier = Modifier.height(16.dp))
                 }

@@ -29,6 +29,13 @@ data class UserDetailUiState(
     val error: String? = null
 )
 
+data class CompareUiState(
+    val user1: CfUser? = null,
+    val user2: CfUser? = null,
+    val isLoading: Boolean = false,
+    val error: String? = null
+)
+
 class UsersViewModel(
     private val repository: CodeforcesRepository
 ) : ViewModel() {
@@ -38,6 +45,30 @@ class UsersViewModel(
 
     private val _detailState = MutableStateFlow(UserDetailUiState())
     val detailState: StateFlow<UserDetailUiState> = _detailState.asStateFlow()
+
+    private val _compareState = MutableStateFlow(CompareUiState())
+    val compareState: StateFlow<CompareUiState> = _compareState.asStateFlow()
+
+    fun compareUsers(handle1: String, handle2: String) {
+        if (handle1.isBlank() || handle2.isBlank()) return
+        viewModelScope.launch {
+            _compareState.value = CompareUiState(isLoading = true)
+            try {
+                val result = repository.users(listOf(handle1, handle2))
+                if (result is Resource.Success && result.data.size >= 2) {
+                    val u1 = result.data.find { it.handle.equals(handle1, ignoreCase = true) } ?: result.data[0]
+                    val u2 = result.data.find { it.handle.equals(handle2, ignoreCase = true) } ?: result.data[1]
+                    _compareState.value = CompareUiState(user1 = u1, user2 = u2)
+                } else if (result is Resource.Error) {
+                    _compareState.value = CompareUiState(error = result.message ?: "Failed to load users")
+                } else {
+                    _compareState.value = CompareUiState(error = "Could not find both users")
+                }
+            } catch (e: Exception) {
+                _compareState.value = CompareUiState(error = e.message ?: "Unknown error")
+            }
+        }
+    }
 
     fun searchUser(handle: String) {
         if (handle.isBlank()) return

@@ -6,13 +6,20 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [EditorSession::class, CustomTestCase::class],
-    version = 1,
+    entities = [
+        EditorSession::class,
+        CustomTestCase::class,
+        BookmarkedProblem::class,
+        ProblemNote::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun editorSessionDao(): EditorSessionDao
     abstract fun customTestCaseDao(): CustomTestCaseDao
+    abstract fun bookmarkDao(): BookmarkDao
+    abstract fun problemNoteDao(): ProblemNoteDao
     
     companion object {
         @Volatile
@@ -24,7 +31,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "codeforces_db"
-                ).build()
+                )
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

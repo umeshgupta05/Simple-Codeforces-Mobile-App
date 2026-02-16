@@ -24,6 +24,7 @@ import com.example.codeforces.data.repository.CodeforcesRepository
 import com.example.codeforces.data.repository.ProblemRepositoryImpl
 import com.example.codeforces.ui.blogs.BlogDetailScreen
 import com.example.codeforces.ui.blogs.BlogsScreen
+import com.example.codeforces.ui.bookmarks.BookmarksScreen
 import com.example.codeforces.ui.contests.ContestDetailScreen
 import com.example.codeforces.ui.contests.ContestsScreen
 import com.example.codeforces.ui.editor.EditorScreen
@@ -32,6 +33,7 @@ import com.example.codeforces.ui.login.LoginDialog
 import com.example.codeforces.ui.problem.ProblemDetailScreen
 import com.example.codeforces.ui.profile.ProfileScreen
 import com.example.codeforces.ui.submissions.SubmissionsScreen
+import com.example.codeforces.ui.users.CompareUsersScreen
 import com.example.codeforces.ui.users.UserDetailScreen
 import com.example.codeforces.ui.users.UsersScreen
 import com.example.codeforces.utils.PreferencesManager
@@ -49,6 +51,8 @@ object Destinations {
     const val CONTEST_DETAIL = "contest"
     const val USER_DETAIL = "user"
     const val BLOG_DETAIL = "blog"
+    const val BOOKMARKS = "bookmarks"
+    const val COMPARE_USERS = "compare_users"
 }
 
 @Composable
@@ -70,9 +74,10 @@ fun CodeforcesApp(
         ProfileViewModel(codeforcesRepository, savedUsername)
     }
 
+    val bookmarksViewModel = remember { BookmarksViewModel(database.bookmarkDao()) }
     val homeViewModel = HomeViewModel(problemRepository)
     val problemViewModel = ProblemViewModel(problemRepository)
-    val editorViewModel = remember { EditorViewModel(database.editorSessionDao()) }
+    val editorViewModel = remember { EditorViewModel(database.editorSessionDao(), database.problemNoteDao()) }
     val contestsViewModel = ContestsViewModel(codeforcesRepository)
     val usersViewModel = UsersViewModel(codeforcesRepository)
     val blogsViewModel = BlogsViewModel(codeforcesRepository)
@@ -111,22 +116,16 @@ fun CodeforcesApp(
                     onClick = { navController.navigate(Destinations.CONTESTS) { popUpTo(Destinations.CONTESTS) } }
                 )
                 NavigationBarItem(
+                    icon = { Icon(Icons.Default.Bookmark, contentDescription = "Bookmarks") },
+                    label = { Text("Saved") },
+                    selected = currentRoute == Destinations.BOOKMARKS,
+                    onClick = { navController.navigate(Destinations.BOOKMARKS) { popUpTo(Destinations.BOOKMARKS) } }
+                )
+                NavigationBarItem(
                     icon = { Icon(Icons.Default.Person, contentDescription = "Users") },
                     label = { Text("Users") },
                     selected = currentRoute == Destinations.USERS,
                     onClick = { navController.navigate(Destinations.USERS) { popUpTo(Destinations.USERS) } }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Article, contentDescription = "Blogs") },
-                    label = { Text("Blogs") },
-                    selected = currentRoute == Destinations.BLOGS,
-                    onClick = { navController.navigate(Destinations.BLOGS) { popUpTo(Destinations.BLOGS) } }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Code, contentDescription = "Submissions") },
-                    label = { Text("Submissions") },
-                    selected = currentRoute == Destinations.SUBMISSIONS,
-                    onClick = { navController.navigate(Destinations.SUBMISSIONS) { popUpTo(Destinations.SUBMISSIONS) } }
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.AccountCircle, contentDescription = "Profile") },
@@ -147,7 +146,10 @@ fun CodeforcesApp(
             blogsViewModel = blogsViewModel,
             submissionsViewModel = submissionsViewModel,
             profileViewModel = profileViewModel,
-            onLoginClick = { showLoginDialog = true },            onLogout = ::handleLogout,            modifier = modifier.padding(paddingValues)
+            bookmarksViewModel = bookmarksViewModel,
+            onLoginClick = { showLoginDialog = true },
+            onLogout = ::handleLogout,
+            modifier = modifier.padding(paddingValues)
         )
         
         if (showLoginDialog) {
@@ -170,6 +172,7 @@ private fun AppNavHost(
     blogsViewModel: BlogsViewModel,
     submissionsViewModel: SubmissionsViewModel,
     profileViewModel: ProfileViewModel,
+    bookmarksViewModel: BookmarksViewModel,
     onLoginClick: () -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
@@ -182,6 +185,7 @@ private fun AppNavHost(
         composable(Destinations.PROBLEMS) {
             HomeScreen(
                 viewModel = homeViewModel,
+                bookmarksViewModel = bookmarksViewModel,
                 onProblemClick = { problem ->
                     navController.navigate("${Destinations.PROBLEM_DETAIL}/${problem.id}")
                 }
@@ -205,7 +209,9 @@ private fun AppNavHost(
                 onCodeChange = { editorViewModel.onCodeChange(it, problemId) },
                 onLanguageChange = { editorViewModel.onLanguageChange(it, problemId) },
                 onCustomInputChange = { editorViewModel.onCustomInputChange(it, problemId) },
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                noteText = editorState.note,
+                onNoteChange = { editorViewModel.onNoteChange(it, problemId) }
             )
         }
         composable("${Destinations.EDITOR}/{problemId}") { backStackEntry ->
@@ -232,12 +238,29 @@ private fun AppNavHost(
                 onBack = { navController.popBackStack() }
             )
         }
+        composable(Destinations.BOOKMARKS) {
+            BookmarksScreen(
+                viewModel = bookmarksViewModel,
+                onProblemClick = { problemId ->
+                    navController.navigate("${Destinations.PROBLEM_DETAIL}/$problemId")
+                }
+            )
+        }
         composable(Destinations.USERS) {
             UsersScreen(
                 viewModel = usersViewModel,
                 onUserClick = { handle ->
                     navController.navigate("${Destinations.USER_DETAIL}/$handle")
+                },
+                onCompareClick = {
+                    navController.navigate(Destinations.COMPARE_USERS)
                 }
+            )
+        }
+        composable(Destinations.COMPARE_USERS) {
+            CompareUsersScreen(
+                viewModel = usersViewModel,
+                onBack = { navController.popBackStack() }
             )
         }
         composable("${Destinations.USER_DETAIL}/{handle}") { backStackEntry ->
@@ -276,4 +299,3 @@ private fun AppNavHost(
         }
     }
 }
-

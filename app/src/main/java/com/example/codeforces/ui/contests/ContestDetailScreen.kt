@@ -1,16 +1,19 @@
 package com.example.codeforces.ui.contests
 
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.codeforces.viewmodel.ContestsViewModel
 import java.text.SimpleDateFormat
@@ -25,6 +28,7 @@ fun ContestDetailScreen(
     onBack: () -> Unit
 ) {
     val state by viewModel.detailState.collectAsState()
+    val context = LocalContext.current
 
     LaunchedEffect(contestId) {
         viewModel.loadContestDetail(contestId)
@@ -36,6 +40,21 @@ fun ContestDetailScreen(
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+            },
+            actions = {
+                IconButton(
+                    onClick = {
+                        val url = "https://codeforces.com/contest/$contestId"
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, "Codeforces: ${state.contest?.name}")
+                            putExtra(Intent.EXTRA_TEXT, "Check out this contest: ${state.contest?.name}\n$url")
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share Contest"))
+                    }
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = "Share")
                 }
             }
         )
